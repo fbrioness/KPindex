@@ -3,17 +3,20 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gráfico del Índice K Planetario</title>
+    <title>Gráfico del Índice K Planetario con Google Charts</title>
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    <script src="https://code.highcharts.com/highcharts.js"></script>
+    <script src="https://www.gstatic.com/charts/loader.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.1/moment.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/moment-timezone/0.5.34/moment-timezone-with-data.min.js"></script>
 </head>
 <body>
-    <div id="planetary_k_index_container" style="width: 550px; height: 515px; margin: 0 auto;"></div>
+    <div id="planetary_k_index_chart" style="width: 550px; height: 515px;"></div>
 
     <script>
-        $(document).ready(function() {
+        google.charts.load('current', {packages: ['corechart', 'bar']});
+        google.charts.setOnLoadCallback(drawChart);
+
+        function drawChart() {
             $.getJSON('https://services.swpc.noaa.gov/products/noaa-planetary-k-index.json', function(response) {
                 // Eliminar el encabezado de la respuesta
                 const data = response.slice(1);
@@ -23,56 +26,46 @@
                 const twoDaysAgo = now.clone().subtract(48, 'hours');
                 const filteredData = data.filter(item => moment(item[0]).isBetween(twoDaysAgo, now));
 
-                const categories = filteredData.map(item => {
+                const dataTable = new google.visualization.DataTable();
+                dataTable.addColumn('string', 'Tiempo');
+                dataTable.addColumn('number', 'Índice Kp');
+                dataTable.addColumn({type: 'string', role: 'style'});
+
+                filteredData.forEach(item => {
                     const start = moment.tz(item[0], "America/Santiago");
                     const end = start.clone().add(3, 'hours');
-                    return `${start.format('MMMM-DD HH:mm')} a ${end.format('HH:mm')}`;
+                    const label = `${start.format('MMMM-DD HH:mm')} a ${end.format('HH:mm')}`;
+                    const value = parseFloat(item[1]);
+                    let color = '#92D050';
+                    if (value >= 7) color = '#C80000';
+                    else if (value >= 5) color = '#FF0000';
+                    else if (value >= 4) color = '#FF9600';
+                    else if (value >= 3) color = '#FFC800';
+                    dataTable.addRow([label, value, `color: ${color}`]);
                 });
-                const values = filteredData.map(item => parseFloat(item[1]));
 
-                Highcharts.chart('planetary_k_index_container', {
-                    chart: {
-                        type: 'column'
+                const options = {
+                    title: 'Índice K Planetario Estimado (Últimas 48 horas)',
+                    hAxis: {
+                        title: 'Hora Local de Chile',
+                        slantedText: true,
+                        slantedTextAngle: 45
                     },
-                    title: {
-                        text: 'Índice K Planetario Estimado (Últimas 48 horas)'
+                    vAxis: {
+                        title: 'Índice Kp',
+                        minValue: 0,
+                        maxValue: 9,
+                        gridlines: {count: 10}
                     },
-                    xAxis: {
-                        categories: categories,
-                        crosshair: true,
-                        title: {
-                            text: 'Hora Local de Chile'
-                        },
-                        labels: {
-                            rotation: -45
-                        }
-                    },
-                    yAxis: {
-                        min: 0,
-                        max: 9,
-                        tickInterval: 1,
-                        title: {
-                            text: 'Índice Kp'
-                        }
-                    },
-                    series: [{
-                        name: 'Índice Kp',
-                        data: values,
-                        colorByPoint: true,
-                        colors: values.map(value => {
-                            if (value >= 7) return '#C80000';
-                            if (value >= 5) return '#FF0000';
-                            if (value >= 4) return '#FF9600';
-                            if (value >= 3) return '#FFC800';
-                            return '#92D050';
-                        })
-                    }],
-                    exporting: {
-                        enabled: false // Deshabilita el botón de exportación en el gráfico
-                    }
-                });
+                    legend: {position: 'none'},
+                    width: 550,
+                    height: 515
+                };
+
+                const chart = new google.visualization.ColumnChart(document.getElementById('planetary_k_index_chart'));
+                chart.draw(dataTable, options);
             });
-        });
+        }
     </script>
 </body>
 </html>
