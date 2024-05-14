@@ -5,14 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Gráfico del Índice K Planetario</title>
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    <script src="https://code.highcharts.com/highcharts.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.1/moment.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/moment-timezone/0.5.34/moment-timezone-with-data.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 </head>
 <body>
-    <div id="planetary_k_index_container" style="width: 550px; height: 515px; margin: 0 auto;"></div>
-    <img id="planetary_k_index_image" style="display:none; width: 550px; height: 515px; margin: 0 auto;"/>
+    <div id="loading">Cargando gráfico...</div>
+    <img id="planetary_k_index_image" style="width: 550px; height: 515px; margin: 0 auto; display: none;"/>
 
     <script>
         $(document).ready(function() {
@@ -32,21 +30,11 @@
                 });
                 const values = filteredData.map(item => parseFloat(item[1]));
 
-                Highcharts.chart('planetary_k_index_container', {
+                const chartOptions = {
                     chart: {
                         type: 'column',
-                        events: {
-                            load: function () {
-                                var chart = this;
-                                setTimeout(function () {
-                                    html2canvas(document.getElementById('planetary_k_index_container')).then(canvas => {
-                                        var imgData = canvas.toDataURL('image/png');
-                                        $('#planetary_k_index_image').attr('src', imgData).show();
-                                        $('#planetary_k_index_container').hide();
-                                    });
-                                }, 1000); // Espera un segundo para asegurarse de que el gráfico se renderice completamente
-                            }
-                        }
+                        width: 550,
+                        height: 515
                     },
                     title: {
                         text: 'Índice K Planetario Estimado (Últimas 48 horas)'
@@ -58,7 +46,7 @@
                             text: 'Hora Local de Chile'
                         },
                         labels: {
-                            rotation: -90
+                            rotation: -45
                         }
                     },
                     yAxis: {
@@ -80,9 +68,26 @@
                             if (value >= 3) return '#FFC800';
                             return '#92D050';
                         })
-                    }],
-                    exporting: {
-                        enabled: false // Deshabilita el botón de exportación en el gráfico
+                    }]
+                };
+
+                // Enviar las opciones del gráfico a Highcharts Export Server
+                $.ajax({
+                    url: 'https://export.highcharts.com/',
+                    type: 'POST',
+                    data: JSON.stringify({
+                        infile: chartOptions,
+                        type: 'image/png',
+                        width: 550,
+                        scale: 1
+                    }),
+                    contentType: 'application/json',
+                    success: function(data) {
+                        $('#planetary_k_index_image').attr('src', 'https://export.highcharts.com/' + data).show();
+                        $('#loading').hide();
+                    },
+                    error: function() {
+                        $('#loading').text('Error al cargar el gráfico.');
                     }
                 });
             });
